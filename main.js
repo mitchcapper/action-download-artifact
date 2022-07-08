@@ -183,6 +183,9 @@ async function main() {
 
             core.info(`==> Downloading: ${artifact.name}.zip (${size})`)
 
+            let saveTo = `${pathname.join(path, artifact.name)}.zip`
+            fs.mkdirSync(path, { recursive: true })
+
             const zip = await client.actions.downloadArtifact({
                 owner: owner,
                 repo: repo,
@@ -190,9 +193,9 @@ async function main() {
                 archive_format: "zip",
             })
 
+            fs.writeFileSync(saveTo, Buffer.from(zip.data), 'binary')
+
             if (skipUnpack) {
-                fs.mkdirSync(path, { recursive: true })
-                fs.writeFileSync(`${pathname.join(path, artifact.name)}.zip`, Buffer.from(zip.data), 'binary')
                 continue
             }
 
@@ -200,7 +203,7 @@ async function main() {
 
             fs.mkdirSync(dir, { recursive: true })
 
-            const adm = new AdmZip(Buffer.from(zip.data))
+            const adm = new AdmZip(saveTo)
 
             core.startGroup(`==> Extracting: ${artifact.name}.zip`)
             adm.getEntries().forEach((entry) => {
@@ -208,9 +211,10 @@ async function main() {
                 const filepath = pathname.join(dir, entry.entryName)
 
                 core.info(`  ${action}: ${filepath}`)
+                adm.extractEntryTo(entry.entryName, dir)
             })
 
-            adm.extractAllTo(dir, true)
+            // adm.extractAllTo(dir, true)
             core.endGroup()
         }
     } catch (error) {
