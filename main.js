@@ -12,7 +12,7 @@ let got = null;
 async function DownloadFile(url, headers, savePath) {
 	if (got == null)
 		got = await import('got');
-    const pipeline = uitl.promisify(stream.pipeline);
+    const pipeline = util.promisify(stream.pipeline);
     const options = {
         headers: headers
     };
