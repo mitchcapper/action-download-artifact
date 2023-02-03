@@ -10,8 +10,10 @@ const util = require('node:util');
 const stream = require( 'node:stream');
 let got = null;
 async function DownloadFile(url, headers, savePath) {
-	if (got == null)
-		got = await import('got');
+	if (got == null){
+		let gImport = await import('got');
+		got = gImport.got;
+	}
     const pipeline = util.promisify(stream.pipeline);
     const options = {
         headers: headers
