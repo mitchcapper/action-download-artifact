@@ -7,11 +7,11 @@ const pathname = require('path')
 const url = require('url')
 const yauzl = require("yauzl");
 const util = require('node:util');
-const got= require('got');
 const stream = require( 'node:stream');
-
-
+let got = null;
 async function DownloadFile(url, headers, savePath) {
+	if (got == null)
+		got = await import('got');
     const pipeline = uitl.promisify(stream.pipeline);
     const options = {
         headers: headers
