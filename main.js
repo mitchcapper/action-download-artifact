@@ -215,7 +215,7 @@ async function main() {
                     const { hostName, pathName } = url.parse(request.url)
                     const options = {
                         hostname: hostName,
-                        path: pathname,
+                        path: pathName,
                         headers: {
                             ...request.headers,
                             Authorization: `token ${token}`,
