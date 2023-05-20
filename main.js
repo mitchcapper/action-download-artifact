@@ -188,7 +188,7 @@ async function main() {
                 return namesFull.includes(artifact.name);
             })
             if (filtered.length != names.length) {
-                core.info(`==> # filtered did not match: Searched for names: ${namesWithPrePostfixes.join(', ')} only found: ${filtered.join(', ')}`)
+                core.info(`==> # filtered did not match: Searched for names: ${namesFull.join(', ')} only found: ${filtered.join(', ')}`)
                 core.info('==> Found the following artifacts instead:')
                 for (const artifact of artifacts) {
                     core.info(`\t==> (found) Artifact: ${artifact.name}`)
