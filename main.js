@@ -29,7 +29,10 @@ async function main() {
         const token = core.getInput("github_token", { required: true })
         const [owner, repo] = core.getInput("repo", { required: true }).split("/")
         const path = core.getInput("path", { required: true })
-        const name = core.getInput("name")
+        //const name = core.getInput("name")
+        let names = core.getMultilineInput("name", { required: false });
+        if (! names)
+            names=[];
         const skipUnpack = core.getInput("skip_unpack")
         const ifNoArtifactFound = core.getInput("if_no_artifact_found")
         let workflow = core.getInput("workflow")
@@ -40,14 +43,28 @@ async function main() {
         let event = core.getInput("event")
         let runID = core.getInput("run_id")
         let runNumber = core.getInput("run_number")
+        let namePrefix = core.getInput("name_prefix")
+        let namePostfix = core.getInput("name_postfix")
         let checkArtifacts = core.getInput("check_artifacts")
         let searchArtifacts = core.getInput("search_artifacts")
         let dryRun = core.getInput("dry_run")
+        let noSubdir = core.getInput("no_subdir")
+        let namesFull=[]
+        let nameFullToOrigName=new Map();
+        for(let name of names){
+            let nameFull = name;
+            if (namePrefix)
+                nameFull = "" + namePrefix + nameFull;
+            if (namePostfix)
+                nameFull = "" + namePostfix + nameFull;
+            namesFull.push(nameFull)
+            nameFullToOrigName.set(nameFull,name)
+        }
 
         const client = github.getOctokit(token)
 
         core.info(`==> Repository: ${owner}/${repo}`)
-        core.info(`==> Artifact name: ${name}`)
+        core.info(`==> Artifact name(s): ${namesFull.join(', ')}`)
         core.info(`==> Local path: ${path}`)
 
         if (!workflow) {
@@ -137,7 +154,7 @@ async function main() {
                         }
                         if (searchArtifacts) {
                             const artifact = artifacts.data.artifacts.find((artifact) => {
-                                return artifact.name == name
+                                return namesFull.includes(artifact.name)
                             })
                             if (!artifact) {
                                 continue
@@ -166,12 +183,12 @@ async function main() {
         })
 
         // One artifact or all if `name` input is not specified.
-        if (name) {
+        if (names.length > 0) {
             filtered = artifacts.filter((artifact) => {
-                return artifact.name == name
+                return namesFull.includes(artifact.name);
             })
-            if (filtered.length == 0) {
-                core.info(`==> (not found) Artifact: ${name}`)
+            if (filtered.length != names.length) {
+                core.info(`==> # filtered did not match: Searched for names: ${namesWithPrePostfixes.join(', ')} only found: ${filtered.join(', ')}`)
                 core.info('==> Found the following artifacts instead:')
                 for (const artifact of artifacts) {
                     core.info(`\t==> (found) Artifact: ${artifact.name}`)
@@ -235,7 +252,7 @@ async function main() {
                 continue
             }
 
-            const dir = name ? path : pathname.join(path, artifact.name)
+            const dir = noSubdir ? path : pathname.join(path, names.length > 0 ?  nameFullToOrigName.get(artifact.name) : artifact.name)
             if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true })
             }

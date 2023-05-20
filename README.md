@@ -43,6 +43,7 @@ Let's suppose you have a workflow with a job in it that at the end uploads an ar
     run_number: 34
     # Optional, uploaded artifact name,
     # will download all artifacts if not specified
+    # can be a multiline scalar for muiltiple
     # and extract them into respective subdirectories
     # https://github.com/actions/download-artifact#download-all-artifacts
     name: artifact_name
@@ -57,6 +58,9 @@ Let's suppose you have a workflow with a job in it that at the end uploads an ar
     # Optional, search for the last workflow run whose stored an artifact named as in `name` input
     # default false
     search_artifacts: false
+    # Optional, do not put each artifact in a subdir with its name(beware conflicts!!!), not needed if skip_unpack
+    # default false
+    no_subdir: false
     # Optional, choose to skip unpacking the downloaded artifact(s)
     # default false
     skip_unpack: false
@@ -65,4 +69,8 @@ Let's suppose you have a workflow with a job in it that at the end uploads an ar
     #  "fail", "warn", "ignore"
     # default fail
     if_no_artifact_found: fail
+    # Optional, prefix the artifact name with this when searching for it
+    name_prefix: ""
+    # Optional, postfix the artifact name with this when searching for it
+    name_postfix: ""
 ```
