@@ -9,11 +9,17 @@ const yauzl = require("yauzl");
 const util = require('node:util');
 const stream = require( 'node:stream');
 let got = null;
-async function DownloadFile(url, headers, savePath) {
-	if (got == null){
+let artifactLib = null;
+async function gotCreateIfNeeded(){
+    if (got == null){
 		let gImport = await import('got');
 		got = gImport.got;
+        artifactLib = await import('@actions/artifact');
 	}
+}
+async function DownloadFile(url, headers, savePath) {
+	await gotCreateIfNeeded();
+    core.info(`Going to download: ${url}`);
     const pipeline = util.promisify(stream.pipeline);
     const options = {
         headers: headers
@@ -33,7 +39,9 @@ async function main() {
         let names = core.getMultilineInput("name", { required: false });
         if (! names)
             names=[];
-        const skipUnpack = core.getInput("skip_unpack")
+        let skipUnpack = core.getInput("skip_unpack")
+        if (skipUnpack == "false")
+            skipUnpack = false;
         const ifNoArtifactFound = core.getInput("if_no_artifact_found")
         let workflow = core.getInput("workflow")
         let workflowConclusion = core.getInput("workflow_conclusion")
@@ -176,11 +184,35 @@ async function main() {
             return setExitMessage(ifNoArtifactFound, "no matching workflow run found with any artifacts?")
         }
 
+
         let artifacts = await client.paginate(client.rest.actions.listWorkflowRunArtifacts, {
             owner: owner,
             repo: repo,
             run_id: runID,
         })
+        if (artifacts.length == 0 && runID == github.context.runId){ //if it is the current run the normal api returns no artifacts.
+            //so we use code taken from the actual download-artifacts, we can't use the actual module yet as it doesnt have a list function.
+            const apiVersion = '6.0-preview';
+            const runToken = process.env['ACTIONS_RUNTIME_TOKEN'];
+            const artifactUrl = `${process.env['ACTIONS_RUNTIME_URL']}_apis/pipelines/workflows/${runID}/artifacts?api-version=${apiVersion}`
+            await gotCreateIfNeeded();
+            let headers = {
+                'Accept': `application/json;api-version=${apiVersion}`,
+                'Authorization': `Bearer ${runToken}`,
+                'Content-Type': 'application/json'
+            };
+            artifacts = (await got(artifactUrl, {
+                headers: headers
+            }).json()).value;
+            for (let artifact of artifacts) {
+                artifact.size_in_bytes=artifact.size;
+                artifact.useNativeDownloader = true;
+                artifact.id=artifact.containerId;
+            }
+        }
+        if (!dryRun && artifacts.length == 0) {
+            return setExitMessage(ifNoArtifactFound, `no artifacts found on workflow with owner: ${owner} repo: ${repo} with run id: ${runID}`)
+        }
 
         // One artifact or all if `name` input is not specified.
         if (names.length > 0) {
@@ -193,6 +225,7 @@ async function main() {
                 for (const artifact of artifacts) {
                     core.info(`\t==> (found) Artifact: ${artifact.name}`)
                 }
+                return setExitMessage(ifNoArtifactFound, `the number of artifacts requested: ${names.length} did not match the number found: ${filtered.length} see above info warnings on workflow with owner: ${owner} repo: ${repo} with run id: ${runID}`)
             }
             artifacts = filtered
         }
@@ -203,7 +236,6 @@ async function main() {
             if (artifacts.length == 0) {
                 core.setOutput("dry_run", false)
                 core.setOutput("found_artifact", false)
-                return
             } else {
                 core.setOutput("dry_run", true)
                 core.setOutput("found_artifact", true)
@@ -215,12 +247,8 @@ async function main() {
                     core.info(`\t==> Name: ${artifact.name}`)
                     core.info(`\t==> Size: ${size}`)
                 }
-                return
             }
-        }
-
-        if (artifacts.length == 0) {
-            return setExitMessage(ifNoArtifactFound, "no artifacts found")
+            return
         }
 
         core.setOutput("found_artifact", true)
@@ -236,23 +264,43 @@ async function main() {
             if (!fs.existsSync(path)) {
                 fs.mkdirSync(path, { recursive: true })
             }
+            const dir = noSubdir ? path : pathname.join(path, names.length > 0 ?  nameFullToOrigName.get(artifact.name) : artifact.name)
 
-            let request = client.rest.actions.downloadArtifact.endpoint({
+            if (artifact.useNativeDownloader) { //we will use the official @actions/artifact to download the artifact rather than implement our own.  The artifact is not yet compressed could be many files and they have retry logic so no real benefit to reimplenting.  If we wanted to we would first call ${artifact.fileContainerResourceUrl}/${artifact.name} which would give us json of all the files then iterate that to get the download url for each
+                var baseMsg = "unable to skip unpacking of artifacts from the current run (as they are not yet packed) so it will show up extracted";
+                if (skipUnpack == "auto")
+                    core.warning(`Warning we are ${baseMsg}`);
+                else if (skipUnpack){
+                    core.setFailed(`Fatal we are ${baseMsg}. To avoid this error but unpack when possible set skip_unpack=auto`);
+                    return;
+                }
+
+                core.info(`Using artifactClient of @actions/artifact to download/extract ${artifact.name}`);
+                const artifactClient = artifactLib.create();
+                if (!fs.existsSync(dir))
+                    fs.mkdirSync(dir, { recursive: true })
+
+                await artifactClient.downloadArtifact(artifact.name, dir, {createArtifactFolder: false});//we created it if needed
+                core.info("Download Completed");
+                continue;
+            }
+
+            let request = request = client.rest.actions.downloadArtifact.endpoint({
                 owner: owner,
                 repo: repo,
                 artifact_id: artifact.id,
                 archive_format: "zip",
             });
+            request.headers = {...request.headers, Authorization: `token ${token}`};
+            await DownloadFile(request.url, request.headers, saveTo);
 
-
-            await DownloadFile(request.url, {...request.headers, Authorization: `token ${token}`}, saveTo);
             core.info("Download Completed");
 
             if (skipUnpack) {
                 continue
             }
 
-            const dir = noSubdir ? path : pathname.join(path, names.length > 0 ?  nameFullToOrigName.get(artifact.name) : artifact.name)
+
             if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true })
             }

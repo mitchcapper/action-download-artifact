@@ -61,7 +61,7 @@ Let's suppose you have a workflow with a job in it that at the end uploads an ar
     # Optional, do not put each artifact in a subdir with its name(beware conflicts!!!), not needed if skip_unpack
     # default false
     no_subdir: false
-    # Optional, choose to skip unpacking the downloaded artifact(s)
+    # Optional, choose to skip unpacking the downloaded artifact(s), Note: If the artifact is potentially from the current workflow it will throw an error if this is set to false (as it is not packed until the workflow is complete).   Use "auto" here to skip unpacking when possible but not error for current workflow artifacts.
     # default false
     skip_unpack: false
     # Optional, choose how to exit the action if no artifact is found
