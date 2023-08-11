@@ -11,9 +11,9 @@ inputs:
     default: ${{ github.token }}
   workflow:
     description: |
-      Workflow name.
+      Workflow id or filename
 
-      If not specified, will be inferred from run_id (if run_id is specified), or will be the current workflow
+      If not specified, will be inferred from run_id (if run_id is specified), or will be the current workflow.  For filename should be the full name like "my_workflow_fl.yml"
     required: false
   workflow_conclusion:
     description: |

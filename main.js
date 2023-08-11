@@ -102,7 +102,11 @@ async function main() {
                 throw new Error(`The following inputs cannot be used together: ${Object.keys(inputSet).join(", ")}`)
             }
         })
-
+        // client.rest.actions.listWorkflowRuns({
+        //     owner: owner,
+        //     repo: repo,
+        //     workflow_: workflow,
+        // })
         if (pr) {
             core.info(`==> PR: ${pr}`)
             const pull = await client.rest.pulls.get({
@@ -365,9 +369,16 @@ async function main() {
             core.endGroup()
         }
     } catch (error) {
+        core.error("Exception occurred");
+        var errMsg = "" + error;
+        if (error.stack)
+            errMsg += " - " + error.stack;
+        if (error.request)
+            errMsg += " - " + error.request.url;
+        core.error(errMsg);
         core.setOutput("found_artifact", false)
         core.setOutput("error_message", error.message)
-        core.setFailed(error.message)
+        core.setFailed("Had an exception: " + error.message)
     }
 
     function setExitMessage(ifNoArtifactFound, message) {
