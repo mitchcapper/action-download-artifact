@@ -289,7 +289,7 @@ async function main() {
                 continue;
             }
 
-            let request = request = client.rest.actions.downloadArtifact.endpoint({
+            let request = client.rest.actions.downloadArtifact.endpoint({
                 owner: owner,
                 repo: repo,
                 artifact_id: artifact.id,
@@ -375,7 +375,8 @@ async function main() {
             errMsg += " - " + error.stack;
         if (error.request)
             errMsg += " - " + error.request.url;
-        core.error(errMsg);
+        console.log(errMsg);
+        console.error(error);
         core.setOutput("found_artifact", false)
         core.setOutput("error_message", error.message)
         core.setFailed("Had an exception: " + error.message)
