@@ -64,7 +64,7 @@ async function main() {
             if (namePrefix)
                 nameFull = "" + namePrefix + nameFull;
             if (namePostfix)
-                nameFull = "" + namePostfix + nameFull;
+                nameFull += namePostfix;
             namesFull.push(nameFull)
             nameFullToOrigName.set(nameFull,name)
         }
